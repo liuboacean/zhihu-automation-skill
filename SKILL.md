@@ -15,7 +15,7 @@ description: >-
   - "搜索知乎" / "查一下知乎上的"
   - "知乎数据" / "提取知乎信息"
 metadata:
-  author: CodeBuddy
+  author: Hermes + WorkBuddy
   version: "2.0.0"
   requires:
     - node

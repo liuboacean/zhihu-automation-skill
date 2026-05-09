@@ -1,8 +1,7 @@
 {
   "name": "zhihu-automation-skill",
   "version": "2.0.0",
-  "description": "知乎自动化 Skill — 支持发布文章/想法、回答问题、提问、互动、数据提取",
-  "private": true,
+  "description": "Zhihu (知乎) Automation Skill — publish articles, thoughts, answer questions, interact, and extract data with dual-channel architecture (HTTP read + browser write)",
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.js",
@@ -12,8 +11,8 @@
     "export-cookie": "node scripts/zhihu-export-cookie.js",
     "hot-list": "node scripts/zhihu-extract.js --type hot-list",
     "search": "node scripts/zhihu-extract.js --type search --query",
-    "publish-article": "node scripts/zhihu-publish.js",
-    "publish-thought": "node scripts/zhihu-thought.js",
+    "publish-article": "node scripts/zhihu-publish.js article",
+    "publish-thought": "node scripts/zhihu-publish.js thought",
     "answer": "node scripts/zhihu-answer.js",
     "ask": "node scripts/zhihu-ask.js",
     "interact": "node scripts/zhihu-interact.js"
