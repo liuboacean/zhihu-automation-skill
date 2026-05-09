@@ -1,0 +1,12 @@
+{
+  "name": "zhihu-automation",
+  "version": "2.0.0",
+  "description": "知乎自动化 — 文章/想法/问答/互动/数据提取，双通道架构",
+  "slug": "zhihu",
+  "author": "CodeBuddy + Hermes",
+  "requires": {
+    "env": ["ZHIHU_COOKIE_KEY"],
+    "tools": ["node", "python3", "playwright"]
+  },
+  "publishedAt": 1746762000000
+}
