@@ -206,10 +206,11 @@ async function withCrashRecovery(fn, context, options = {}) {
 
 /**
  * 安全导航到目标页面
+ * 使用 load 而非 networkidle（Zhihu 有长轮询，networkidle 永不触发）
  */
 async function navigateTo(page, url, options = {}) {
   const timeout = options.timeout ?? 30000;
-  const waitUntil = options.waitUntil ?? 'networkidle';
+  const waitUntil = options.waitUntil ?? 'load';
   await page.goto(url, { waitUntil, timeout });
   await humanDelay(1000, 2000);
 }
