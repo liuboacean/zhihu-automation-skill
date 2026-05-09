@@ -49,15 +49,39 @@ async function publishArticle({ title, content, draft = false }) {
     }
     await humanDelay(500, 1000);
 
-    // 填写正文：点击编辑器后用 keyboard.type 逐字输入
+    // 填写正文：批量粘贴（优先 ClipboardEvent，兜底 keyboard.type）
     const contentEl = await findElement(page, editor.contentEditor);
     if (contentEl) {
       await contentEl.click();
       await sleep(1500);
-      // 用 keyboard.type 逐字符输入，ProseMirror 处理的输入事件
-      await page.keyboard.type(content, { delay: 10 });
-      await sleep(1000);
-      console.log('✅ 内容已通过键盘输入');
+      
+      // 方法1: ClipboardEvent paste（最快，~25ms）
+      const pasted = await page.evaluate((text) => {
+        const ed = document.querySelector('[contenteditable]');
+        if (!ed) return false;
+        ed.focus();
+        try {
+          const dt = new DataTransfer();
+          dt.setData('text/plain', text);
+          const ev = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
+          ed.dispatchEvent(ev);
+          return true;
+        } catch {
+          return false;
+        }
+      }, content);
+      
+      if (pasted) {
+        // 等待 Draft.js 处理粘贴事件
+        await sleep(500);
+        console.log('✅ 内容已批量粘贴');
+      } else {
+        // 方法2: keyboard.type（慢但可靠）
+        console.log('⚠️ 批量粘贴不可用，回退到逐字输入');
+        await page.keyboard.type(content, { delay: 0 });
+        await sleep(500);
+        console.log('✅ 内容已通过键盘输入');
+      }
     }
 
     if (draft) {
