@@ -4,3 +4,10 @@ __pycache__/
 .DS_Store
 *.log
 .env
+dist/
+*.tsbuildinfo
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
