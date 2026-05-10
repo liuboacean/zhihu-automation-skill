@@ -256,21 +256,66 @@ async function checkLoginStatus(page) {
  */
 function markdownToZhihuHTML(md) {
   let html = md
+
     // 代码块 (```)
     .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
-    // 标题 (## → <h2>)
+
+    // 行内代码 (`code`)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+
+    // 标题
     .replace(/^### (.+)$/gm, '<h3>$1</h3>')
     .replace(/^## (.+)$/gm, '<h2>$1</h2>')
     .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-    // 加粗
+
+    // 删除线
+    .replace(/~~(.+?)~~/g, '<del>$1</del>')
+
+    // 加粗 + 斜体
+    .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+
+    // 图片
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1">')
+
     // 链接
-    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2">$1</a>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+
+    // 任务列表
+    .replace(/^- \[x\] (.+)$/gim, '<li><input type="checkbox" checked disabled>$1</li>')
+    .replace(/^- \[ \] (.+)$/gim, '<li><input type="checkbox" disabled>$1</li>')
+
+    // 引用块
+    .replace(/^> (.+)$/gm, '<blockquote><p>$1</p></blockquote>')
+
+    // 有序列表 → 用特殊标记以便区分
+    .replace(/^\d+\. (.+)$/gm, '<!--ordered--><li>$1</li>')
+
     // 无序列表
-    .replace(/^- (.+)$/gm, '<li>$1</li>')
-    .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
-    // 段落
-    .replace(/\n\n/g, '</p><p>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>');
+
+  // 表格
+  html = html.replace(/^\|(.+)\|$/gm, (line) => {
+    const cells = line.split('|').filter(c => c.trim());
+    if (cells.every(c => /^-+$/.test(c.trim()))) return '';
+    return '<tr><td>' + cells.map(c => c.trim()).join('</td><td>') + '</td></tr>';
+  });
+  html = html.replace(/(<tr>.*<\/tr>\n?)+/g, '<table>$&</table>');
+
+  // 包装列表：区分有序/无序
+  html = html.replace(/((<!--ordered--><li>.*<\/li>\n?)+)/g, '<ol>$&</ol>');
+  html = html.replace(/<!--ordered-->/g, '');
+  html = html.replace(/(<li>.*<\/li>\n?)+/g, (match) => {
+    if (match.includes('<!--ordered-->') || match.match(/^\d+\./m)) return match;
+    return '<ul>' + match + '</ul>';
+  });
+
+  // 合并相邻的 blockquote
+  html = html.replace(/<\/blockquote>\n?<blockquote>/g, '\n');
+
+  // 段落
+  html = html.replace(/\n\n/g, '</p><p>')
     .replace(/^(.+)$/gm, (match) => {
       if (match.startsWith('<')) return match;
       return `<p>${match}</p>`;
