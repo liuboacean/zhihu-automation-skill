@@ -10,7 +10,7 @@
  */
 
 import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, chmodSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, chmodSync, renameSync } from 'fs';
 import { homedir } from 'os';
 import { resolve } from 'path';
 import { chromium } from 'playwright';
@@ -97,14 +97,16 @@ function encryptAndSaveCookies(cookies) {
   const authTag = cipher.getAuthTag();
 
   const output = Buffer.concat([iv, authTag, encrypted]);
-  writeFileSync(COOKIE_PATH, output);
 
-  // 权限 0600
+  // 原子写入：先写 tmp 文件，再 rename，防止写入崩溃导致文件损坏
+  const tmpPath = COOKIE_PATH + '.tmp';
+  writeFileSync(tmpPath, output);
   try {
-    chmodSync(COOKIE_PATH, 0o600);
+    chmodSync(tmpPath, 0o600);
   } catch {
     // Windows 不支持 chmod，静默忽略
   }
+  renameSync(tmpPath, COOKIE_PATH);
 
   console.log(`[zhihu-core] Cookie 已加密保存 (${(output.length / 1024).toFixed(1)} KB)`);
 }
@@ -216,7 +218,6 @@ async function initBrowser({ headless = false, proxy, userDataDir } = {}) {
     args: [
       '--disable-blink-features=AutomationControlled',
       '--disable-features=IsolateOrigins,site-per-process',
-      '--disable-web-security',
       '--no-sandbox',
       '--disable-setuid-sandbox',
     ],
