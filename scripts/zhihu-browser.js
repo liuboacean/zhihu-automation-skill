@@ -252,70 +252,88 @@ async function checkLoginStatus(page) {
 
 /**
  * 将 Markdown 转换为知乎可接受的 HTML 富文本
- * 支持：标题、列表、加粗、链接、代码块
+ * 支持：标题、加粗、斜体、链接、无序列表、有序列表、任务列表、
+ *       引用块、行内代码、删除线、图片、表格、代码块、段落
  */
 function markdownToZhihuHTML(md) {
   let html = md
 
-    // 代码块 (```)
+    // ── 代码块 (```) ── 优先处理，保护内容不被后续正则干扰
     .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
 
-    // 行内代码 (`code`)
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    // ── 引用块 (> quote) ── 块级，带 <p> 保持段落结构
+    .replace(/^> (.+)$/gm, '<blockquote><p>$1</p></blockquote>')
 
-    // 标题
+    // ── 任务列表 (- [x] / - [ ]) ── 用临时标记避免与无序列表混淆
+    .replace(/^- \[x\] (.+)$/gim, '<tmp-task data-checked>$1</tmp-task>')
+    .replace(/^- \[ \] (.+)$/gim, '<tmp-task>$1</tmp-task>')
+
+    // ── 有序列表 (1. item) ── 用临时标记以便分组
+    .replace(/^\d+\. (.+)$/gm, '<tmp-ol>$1</tmp-ol>')
+
+    // ── 无序列表 (- item) ──
+    .replace(/^- (.+)$/gm, '<tmp-ul>$1</tmp-ul>')
+
+    // ── 标题 (## → <h2>)
     .replace(/^### (.+)$/gm, '<h3>$1</h3>')
     .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>');
 
-    // 删除线
+  // ── 表格 (| col1 | col2 |) ── 整块处理，支持表头
+  html = html.replace(/(^\|.+\|\n?)+/gm, (tableBlock) => {
+    const lines = tableBlock.trim().split('\n');
+    // 分隔行：每个单元格只包含 - : 空格
+    const isSepRow = (line) => line.split('|').slice(1, -1).every(c => /^[\s:-]+$/.test(c.trim()));
+    const hasHeader = lines.length > 1 && isSepRow(lines[1]);
+    let tableHtml = '<table>';
+    lines.forEach((line, idx) => {
+      if (hasHeader && idx === 1) return; // 跳过分隔行
+      const cells = line.split('|').slice(1, -1).map(s => s.trim());
+      const tag = (hasHeader && idx === 0) ? 'th' : 'td';
+      tableHtml += '<tr>';
+      cells.forEach(c => { tableHtml += `<${tag}>${c}</${tag}>`; });
+      tableHtml += '</tr>';
+    });
+    return tableHtml + '</table>';
+  });
+
+  // ── 合并相邻引用块 ── 需在段落处理之前
+  html = html.replace(/<\/blockquote>\n?<blockquote>/g, '\n');
+
+  // ── 包装有序列表 ── 先于无序列表，避免交叉匹配
+  html = html.replace(/(<tmp-ol>.*?<\/tmp-ol>\n?)+/g, (match) => {
+    return '<ol>' + match.replace(/tmp-ol>/g, 'li>') + '</ol>';
+  });
+
+  // ── 包装任务列表和无序列表 ── 用统一 <ul> 包裹
+  html = html.replace(/(<(?:tmp-task|tmp-ul)[^>]*>.*?<\/(?:tmp-task|tmp-ul)>\n?)+/g, (match) => {
+    let inner = match
+      .replace(/<tmp-task data-checked>/g, '<li class="task-list-item"><input type="checkbox" checked="" disabled> ')
+      .replace(/<tmp-task>/g, '<li class="task-list-item"><input type="checkbox" disabled> ')
+      .replace(/<tmp-ul>/g, '<li>')
+      .replace(/<\/(?:tmp-task|tmp-ul)>/g, '</li>');
+    return '<ul>' + inner + '</ul>';
+  });
+
+  // ── 行内代码 (`code`)
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>')
+
+  // ── 删除线 (~~text~~)
     .replace(/~~(.+?)~~/g, '<del>$1</del>')
 
-    // 加粗 + 斜体
+  // ── 加粗 + 斜体
     .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
 
-    // 图片
-    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1">')
+  // ── 图片 (![alt](url)) ── 在链接之前，用 <figure> 包裹符合知乎编辑器结构
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<figure><img src="$2" alt="$1" referrerpolicy="no-referrer"></figure>')
 
-    // 链接
+  // ── 链接 ([text](url))
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
 
-    // 任务列表
-    .replace(/^- \[x\] (.+)$/gim, '<li><input type="checkbox" checked disabled>$1</li>')
-    .replace(/^- \[ \] (.+)$/gim, '<li><input type="checkbox" disabled>$1</li>')
-
-    // 引用块
-    .replace(/^> (.+)$/gm, '<blockquote><p>$1</p></blockquote>')
-
-    // 有序列表 → 用特殊标记以便区分
-    .replace(/^\d+\. (.+)$/gm, '<!--ordered--><li>$1</li>')
-
-    // 无序列表
-    .replace(/^- (.+)$/gm, '<li>$1</li>');
-
-  // 表格
-  html = html.replace(/^\|(.+)\|$/gm, (line) => {
-    const cells = line.split('|').filter(c => c.trim());
-    if (cells.every(c => /^-+$/.test(c.trim()))) return '';
-    return '<tr><td>' + cells.map(c => c.trim()).join('</td><td>') + '</td></tr>';
-  });
-  html = html.replace(/(<tr>.*<\/tr>\n?)+/g, '<table>$&</table>');
-
-  // 包装列表：区分有序/无序
-  html = html.replace(/((<!--ordered--><li>.*<\/li>\n?)+)/g, '<ol>$&</ol>');
-  html = html.replace(/<!--ordered-->/g, '');
-  html = html.replace(/(<li>.*<\/li>\n?)+/g, (match) => {
-    if (match.includes('<!--ordered-->') || match.match(/^\d+\./m)) return match;
-    return '<ul>' + match + '</ul>';
-  });
-
-  // 合并相邻的 blockquote
-  html = html.replace(/<\/blockquote>\n?<blockquote>/g, '\n');
-
-  // 段落
-  html = html.replace(/\n\n/g, '</p><p>')
+  // ── 段落 ── 最后处理，跳过已标记的 HTML 块
+    .replace(/\n\n/g, '</p><p>')
     .replace(/^(.+)$/gm, (match) => {
       if (match.startsWith('<')) return match;
       return `<p>${match}</p>`;
