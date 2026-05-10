@@ -1,0 +1,28 @@
+# Publish to ClawHub on tag push
+# Requires: CLAWHUB_TOKEN secret in GitHub repo settings
+
+name: Publish
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Publish to ClawHub
+        run: npx clawhub publish . --slug zhihu-automation --version "${GITHUB_REF_NAME#v}" --changelog "Auto-publish from CI"
+        env:
+          CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
