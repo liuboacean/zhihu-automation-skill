@@ -14,8 +14,6 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, chmodSync, renameSy
 import { homedir } from 'os';
 import { resolve } from 'path';
 import { chromium } from 'playwright';
-import { addExtra } from 'playwright-extra';
-import stealthPlugin from 'puppeteer-extra-plugin-stealth';
 
 // ──────────────────────────────────────────
 // 路径常量
@@ -202,7 +200,7 @@ let browserContext = null;
 
 /**
  * 初始化持久化浏览器会话
- * 使用 playwright-extra + stealth 插件绕过反爬
+ * 使用原生 Playwright + addInitScript 绕过反爬
  */
 async function initBrowser({ headless = false, proxy, userDataDir } = {}) {
   if (browserInstance && browserInstance.isConnected()) {
@@ -228,16 +226,7 @@ async function initBrowser({ headless = false, proxy, userDataDir } = {}) {
   }
 
   try {
-    // 如果有 stealth 插件则使用，否则回退到原生 Playwright
-    let browser;
-    try {
-      const playwright = addExtra(chromium);
-      playwright.use(stealthPlugin());
-      browser = await playwright.launch(launchOptions);
-    } catch {
-      console.log('[zhihu-core] playwright-extra 不可用，回退到原生 Playwright');
-      browser = await chromium.launch(launchOptions);
-    }
+    const browser = await chromium.launch(launchOptions);
 
     const context = await browser.newContext({
       userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
@@ -245,6 +234,33 @@ async function initBrowser({ headless = false, proxy, userDataDir } = {}) {
       locale: 'zh-CN',
       timezoneId: 'Asia/Shanghai',
       permissions: [],
+    });
+
+    // 手动反检测：隐藏自动化特征（替代 stealth 插件）
+    await context.addInitScript(() => {
+      // 1. 隐藏 navigator.webdriver
+      delete navigator.webdriver;
+      Object.defineProperty(navigator, 'webdriver', { get: () => false });
+
+      // 2. 伪装 Chrome 属性
+      window.chrome = { runtime: {} };
+
+      // 3. 绕过 permissions 检测
+      const originalQuery = window.navigator.permissions.query;
+      window.navigator.permissions.query = (parameters) =>
+        parameters.name === 'notifications'
+          ? Promise.resolve({ state: Notification.permission })
+          : originalQuery(parameters);
+
+      // 4. 伪装插件列表（避免无插件特征）
+      Object.defineProperty(navigator, 'plugins', {
+        get: () => [1, 2, 3, 4, 5],
+      });
+
+      // 5. 语言一致性
+      Object.defineProperty(navigator, 'languages', {
+        get: () => ['zh-CN', 'zh', 'en'],
+      });
     });
 
     // 加载已保存的 Cookie
