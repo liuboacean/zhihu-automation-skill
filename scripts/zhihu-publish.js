@@ -7,21 +7,82 @@
  * - 发布想法
  *
  * CLI 用法:
- *   node scripts/zhihu-publish.js article --title "标题" --content "正文.md" [--draft]
- *   node scripts/zhihu-publish.js thought --content "内容" [--image path]
+ *   node scripts/zhihu-publish.js article --title "标题" --content "正文.md" [--draft] [--preview]
+ *   node scripts/zhihu-publish.js thought --content "内容" [--image path] [--preview]
  *
  * I2 | I3
  */
 
 import { readFileSync } from 'fs';
+import readline from 'readline';
 import { getSession, navigateTo, clickElement, findElement, typeLikeHuman, markdownToZhihuHTML, humanDelay, sleep, withCrashRecovery, getSelectors } from './zhihu-browser.js';
+
+// ──────────────────────────────────────────
+// 工具函数
+// ──────────────────────────────────────────
+
+/**
+ * 预览模式：显示内容并等待用户确认
+ * @returns {Promise<boolean>} true = 确认发布，false = 取消
+ */
+async function confirmPublishPreview(type, { title, content, imagePath }) {
+  console.log('\n📋 发布预览');
+  console.log('═'.repeat(60));
+  console.log(`类型: ${type === 'article' ? '文章' : '想法'}`);
+  if (title) console.log(`标题: ${title}`);
+  console.log(`内容长度: ${content.length} 字符`);
+  if (imagePath) console.log(`配图: ${imagePath}`);
+  console.log('─'.repeat(60));
+  console.log('内容预览:');
+  console.log(content.length > 500 ? content.substring(0, 500) + '...' : content);
+  console.log('═'.repeat(60));
+  console.log('');
+  console.log('确认发布？');
+  console.log('  y = 确认发布');
+  console.log('  n = 取消（保存为草稿）');
+  console.log('  q = 退出不保存');
+  console.log('');
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  return new Promise((resolve) => {
+    rl.question('请选择 (y/n/q): ', (answer) => {
+      rl.close();
+      const a = answer.trim().toLowerCase();
+      if (a === 'y') {
+        console.log('✅ 用户确认发布');
+        resolve(true);
+      } else if (a === 'n') {
+        console.log('📝 用户选择保存为草稿');
+        resolve('draft');
+      } else {
+        console.log('❌ 用户取消发布');
+        resolve(false);
+      }
+    });
+  });
+}
 
 // ──────────────────────────────────────────
 // 发布文章
 // ──────────────────────────────────────────
 
-async function publishArticle({ title, content, draft = false }) {
+async function publishArticle({ title, content, draft = false, preview = false }) {
   console.log(`\n📝 发布${draft ? '草稿' : '文章'}: ${title}`);
+
+  // 预览模式：显示内容并等待确认
+  if (preview) {
+    const confirm = await confirmPublishPreview('article', { title, content });
+    if (confirm === false) {
+      return { status: 'cancelled', title };
+    } else if (confirm === 'draft') {
+      draft = true;
+      console.log('📝 将保存为草稿...');
+    }
+  }
 
   return await withCrashRecovery(async () => {
     const { context, page } = await getSession();
@@ -117,8 +178,27 @@ async function publishArticle({ title, content, draft = false }) {
 // 发布想法
 // ──────────────────────────────────────────
 
-async function publishThought({ content, imagePath = null }) {
+async function publishThought({ content, imagePath = null, preview = false }) {
   console.log(`\n💭 发布想法`);
+
+  // 预览模式：显示内容并等待确认
+  if (preview) {
+    const confirm = await confirmPublishPreview('thought', { content, imagePath });
+    if (confirm === false) {
+      return { status: 'cancelled', type: 'thought' };
+    } else if (confirm === 'draft') {
+      console.log('💭 想法将保存为草稿...');
+      // 想法没有草稿功能，保存为本地文件
+      const fs = await import('fs/promises');
+      const path = await import('path');
+      const draftDir = path.join(process.env.HOME, '.hermes', 'drafts');
+      await fs.mkdir(draftDir, { recursive: true });
+      const draftFile = path.join(draftDir, `thought-${Date.now()}.txt`);
+      await fs.writeFile(draftFile, content, 'utf-8');
+      console.log(`📝 想法已保存为本地草稿: ${draftFile}`);
+      return { status: 'draft_saved', file: draftFile };
+    }
+  }
 
   return await withCrashRecovery(async () => {
     const { context, page } = await getSession();
@@ -209,11 +289,11 @@ function main() {
     console.error('用法: node scripts/zhihu-publish.js <article|thought> [选项]');
     console.error('');
     console.error('文章:');
-    console.error('  node scripts/zhihu-publish.js article --title "标题" --content "正文" [--draft]');
-    console.error('  node scripts/zhihu-publish.js article --title "标题" --content-file "path.md"');
+    console.error('  node scripts/zhihu-publish.js article --title "标题" --content "正文" [--draft] [--preview]');
+    console.error('  node scripts/zhihu-publish.js article --title "标题" --content-file "path.md" [--preview]');
     console.error('');
     console.error('想法:');
-    console.error('  node scripts/zhihu-publish.js thought --content "内容" [--image "图片路径"]');
+    console.error('  node scripts/zhihu-publish.js thought --content "内容" [--image "图片路径"] [--preview]');
     process.exit(1);
   }
 
@@ -227,6 +307,7 @@ function main() {
         break;
       case '--image': options.imagePath = args[++i]; break;
       case '--draft': options.draft = true; break;
+      case '--preview': options.preview = true; break;
     }
   }
 
