@@ -1,8 +1,8 @@
 <div align="center">
 
-# 🤖 知乎自动化 Skill
+# 🤖 知乎操作辅助 Skill
 
-**让你的 AI 助手帮你打理知乎 — 发文章、写想法、回答问题、看热榜，全都自动化**
+**通过浏览器操作知乎 — 发文章、写想法、回答问题、看热榜**
 
 [![Version](https://img.shields.io/badge/version-2.0.2-blue)](https://github.com/liuboacean/zhihu-automation-skill)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -20,7 +20,7 @@
 | 功能 | 一句话描述 | 通道 |
 |:----|-----------|:----:|
 | 📝 **发文章** | Markdown → 一键发布知乎专栏（**25ms 批量粘贴**） | 浏览器 |
-| 💭 **发想法** | 像发朋友圈一样自动化发想法 | 浏览器 |
+| 💭 **发想法** | 像发朋友圈一样发想法 | 浏览器 |
 | ❓ **答问题** | 搜索并回答知乎上的问题 | 浏览器 |
 | 🙋 **提问** | 在知乎上自动提问 | 浏览器 |
 | 👍 **互动** | 点赞、评论、关注一条龙 | 浏览器 |
@@ -28,7 +28,7 @@
 | 🔍 **搜内容** | 搜索知乎上的文章和回答 | 浏览器 |
 
 > ℹ️ 所有操作统一走**浏览器通道**（Cookie 登录），稳定可靠。
-> HTTP 签名通道因 API 签名算法逆向成本过高已正式放弃（详见 `zhihu-signature.js`）。
+> HTTP 签名通道因 API 签名算法分析成本过高已正式放弃（详见 `zhihu-signature.js`）。
 
 ---
 
@@ -63,7 +63,7 @@ node scripts/zhihu-publish.js thought --content "Hello 知乎"  # 发想法
           ┌────────────────┼────────────────┐
           ▼                ▼                ▼
    ┌────────────┐  ┌──────────────┐  ┌────────────┐
-   │ 浏览器自动化  │  │   编辑器     │  │ Cookie 加密 │
+   │ 浏览器操作  │  │   编辑器     │  │ Cookie 加密 │
    │ 发布/互动/问答│  │ Draft.js 兼容│  │ AES-256-GCM│
    │ 热榜/搜索   │  │ 25ms 批量粘贴│  │ 密钥轮换    │
    └────────────┘  └──────────────┘  └────────────┘
@@ -72,7 +72,7 @@ node scripts/zhihu-publish.js thought --content "Hello 知乎"  # 发想法
 | 特性 | 说明 |
 |------|------|
 | 🔒 **Cookie 安全** | AES-256-GCM 加密存储，权限 0600，支持密钥轮换 |
-| 🛡️ **反爬防护** | Playwright Stealth + 贝塞尔鼠标轨迹 + TLS 指纹伪装 |
+| 🛡️ **防护机制** | 贝塞尔鼠标轨迹模拟人工操作 |
 | 🔄 **Plan B 降级** | 签名失效自动降级到浏览器通道，永不中断 |
 | ⏱️ **智能限流** | 浏览器 5-10s / 限流指数退避（30s → 10min） |
 | 💥 **崩溃恢复** | 浏览器崩溃自动重建会话，任务不丢失 |
@@ -137,7 +137,7 @@ zhihu-skill/
 │   ├── zhihu-core.js           # Cookie/浏览器/日志/重试
 │   ├── zhihu-signature.js      # 签名适配器（含放弃决策说明）
 │   ├── zhihu-http.js           # HTTP 读通道（公开端点）
-│   ├── zhihu-browser.js        # 浏览器自动化（反爬+CrashRecovery）
+│   ├── zhihu-browser.js        # 浏览器操作（防护+CrashRecovery）
 │   ├── zhihu-publish.js        # 发布文章+想法
 │   ├── zhihu-interact.js       # 点赞+评论+关注
 │   ├── zhihu-answer.js / ask.js# 问答
@@ -170,7 +170,7 @@ zhihu-skill/
 | 工具 | 版本要求 | 用途 |
 |:----|:--------:|------|
 | Node.js | >= 18 | 核心运行环境 |
-| Playwright | 1.52+ | 浏览器自动化 |
+| Playwright | 1.52+ | 浏览器操作 |
 | Python 3 | >= 3.8 | 仅圈子互动（可选） |
 
 ---

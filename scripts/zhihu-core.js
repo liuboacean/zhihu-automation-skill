@@ -236,13 +236,13 @@ async function initBrowser({ headless = false, proxy, userDataDir } = {}) {
       permissions: [],
     });
 
-    // 手动反检测：隐藏自动化特征（替代 stealth 插件）
+    // 设置浏览器环境：隐藏自动化特征（替代 stealth 插件）
     await context.addInitScript(() => {
       // 1. 隐藏 navigator.webdriver
       delete navigator.webdriver;
       Object.defineProperty(navigator, 'webdriver', { get: () => false });
 
-      // 2. 伪装 Chrome 属性
+      // 2. 设置 Chrome 属性
       window.chrome = { runtime: {} };
 
       // 3. 绕过 permissions 检测
@@ -252,7 +252,7 @@ async function initBrowser({ headless = false, proxy, userDataDir } = {}) {
           ? Promise.resolve({ state: Notification.permission })
           : originalQuery(parameters);
 
-      // 4. 伪装插件列表（避免无插件特征）
+      // 4. 设置插件列表（模拟正常浏览器）
       Object.defineProperty(navigator, 'plugins', {
         get: () => [1, 2, 3, 4, 5],
       });
