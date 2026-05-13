@@ -8,17 +8,29 @@
  *   node tests/cookie-check.js --fix    # 清理过期的 Cookie 文件
  *
  * P1-1 (Hermes 评审): 填充桩文件
+ *
+ * @module cookie-check
  */
 
 import { preflightCookieCheck, checkCookieExpiry, decryptCookies, COOKIE_PATH } from '../scripts/zhihu-core.js';
 import { existsSync, unlinkSync } from 'fs';
+import { testLog } from '../scripts/zhihu-logger.js';
 
+/**
+ * 格式化 Unix 时间戳为中文日期
+ * @param {number} ts - Unix 时间戳（秒）
+ * @returns {string} 格式化后的日期字符串
+ */
 function formatDate(ts) {
   if (!ts) return '未知';
   const d = new Date(ts * 1000);
   return d.toLocaleDateString('zh-CN') + ' ' + d.toLocaleTimeString('zh-CN');
 }
 
+/**
+ * Cookie 检测主函数
+ * @returns {void}
+ */
 function main() {
   const args = process.argv.slice(2);
   const fixMode = args.includes('--fix');
@@ -28,6 +40,7 @@ function main() {
 
   // 1. 检查文件是否存在
   if (!existsSync(COOKIE_PATH)) {
+    testLog.warn('Cookie 文件不存在', { path: COOKIE_PATH });
     console.log('❌ Cookie 文件不存在');
     console.log(`   路径: ${COOKIE_PATH}`);
     console.log('');
@@ -39,6 +52,7 @@ function main() {
   // 2. 尝试解密
   const cookies = decryptCookies();
   if (!cookies || cookies.length === 0) {
+    testLog.warn('Cookie 解密失败', { path: COOKIE_PATH });
     console.log('❌ Cookie 解密失败');
     console.log('   请确认 ZHIHU_COOKIE_KEY 与导出时一致');
     console.log('   或清除 Cookie 文件后重新登录');
@@ -48,6 +62,7 @@ function main() {
       console.log('');
       console.log('🗑️  清理中...');
       unlinkSync(COOKIE_PATH);
+      testLog.info('Cookie 文件已清理', { path: COOKIE_PATH });
       console.log('✅ Cookie 文件已删除，请重新导出');
     }
     process.exit(1);
@@ -70,20 +85,24 @@ function main() {
 
   if (!valid) {
     if (reason === 'expired') {
+      testLog.warn('Cookie 已过期', { expiresInDays });
       console.log('❌ Cookie 已过期，请重新运行 node scripts/zhihu-export-cookie.js');
       process.exit(1);
     }
     if (reason === 'no_cookie_file' || reason === 'z_c0_missing') {
+      testLog.warn('无效的 Cookie 文件', { reason });
       console.log('❌ 无效的 Cookie 文件，请重新导出');
       process.exit(1);
     }
   }
 
   if (reason === 'expiring_soon') {
+    testLog.warn('Cookie 即将过期', { expiresInDays });
     console.log(`⚠️  Cookie 将在 ${expiresInDays} 天后过期`);
     console.log('   建议提前重新导出 Cookie');
     console.log('   node scripts/zhihu-export-cookie.js');
   } else {
+    testLog.info('Cookie 检测通过', { expiresInDays });
     console.log(`✅ Cookie 有效，剩余 ${expiresInDays} 天`);
   }
 

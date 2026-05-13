@@ -20,23 +20,34 @@
  *
  * P0-2 (Hermes 评审): 删除硬编码签名密钥
  * C3b | I18 | I14 | I20
+ *
+ * @module zhihu-signature
  */
 
-import { writeLog } from './zhihu-core.js';
+import { signatureLog } from './zhihu-logger.js';
 
-// ──────────────────────────────────────────
-// 常量
-// ──────────────────────────────────────────
-
+/** @type {string} App 版本号 */
 const APP_VERSION = '4.79.0';
+/** @type {string} 平台标识 */
 const PLATFORM = 'pc';
 
 // ──────────────────────────────────────────
 // MockProvider — Plan B 降级（默认）
 // ──────────────────────────────────────────
 
+/**
+ * Mock 签名提供者
+ * Plan B 默认降级：返回空签名头
+ */
 class MockProvider {
-  async sign() {
+  /**
+   * 生成签名头（空实现）
+   * @param {string} [url] - 请求 URL
+   * @param {string} [method] - HTTP 方法
+   * @param {string} [body] - 请求体
+   * @returns {Promise<Record<string,string>>} 签名头
+   */
+  async sign(url, method, body) {
     return {
       'x-zse-93': '101_3_3.0',
       'x-zse-96': '',
@@ -50,27 +61,42 @@ class MockProvider {
 // SignatureManager — 签名管理器
 // ──────────────────────────────────────────
 
+/**
+ * 签名管理器
+ * 当前始终使用 MockProvider（HTTP 签名通道已放弃）
+ */
 class SignatureManager {
+  /**
+   * @param {MockProvider} [provider] - 签名提供者
+   */
   constructor(provider = new MockProvider()) {
+    /** @type {MockProvider} 签名提供者 */
     this.provider = provider;
-    this._planBActive = true; // 默认激活 Plan B
+    /** @type {boolean} Plan B 是否激活 */
+    this._planBActive = true;
   }
 
   /**
    * 生成完整的请求头
    * 当前始终使用 MockProvider（HTTP 签名通道已放弃）
+   *
+   * @param {string} url - 请求 URL
+   * @param {string} method - HTTP 方法
+   * @param {string} [body] - 请求体
+   * @returns {Promise<Record<string,string>>} 请求头对象
    */
   async getHeaders(url, method, body) {
     try {
       return await this.provider.sign(url, method, body);
     } catch (err) {
-      console.warn('[zhihu-signature] 签名生成失败，返回基础头:', err.message);
+      signatureLog.warn('签名生成失败，返回基础头', err);
       return new MockProvider().sign(url, method, body);
     }
   }
 
   /**
    * Plan B 是否已激活（始终返回 true）
+   * @returns {boolean}
    */
   isPlanBActive() {
     return this._planBActive;
@@ -81,6 +107,7 @@ class SignatureManager {
 // 默认实例
 // ──────────────────────────────────────────
 
+/** @type {SignatureManager} 默认签名管理器 */
 const defaultSignatureManager = new SignatureManager(new MockProvider());
 
 // ──────────────────────────────────────────

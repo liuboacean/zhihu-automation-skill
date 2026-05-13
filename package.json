@@ -1,10 +1,13 @@
 {
   "name": "zhihu-automation-skill",
-  "version": "2.0.1",
-  "description": "Zhihu (知乎) Automation Skill — publish articles, thoughts, answer questions, interact, and extract data with dual-channel architecture (HTTP read + browser write)",
+  "version": "2.0.2",
+  "description": "Zhihu (知乎) Automation Skill — publish articles, thoughts, answer questions, interact, and extract data with dual-channel architecture (HTTP read + browser write). v2.0.2 adds unified logging framework and complete JSDoc type annotations.",
   "homepage": "https://github.com/liuboacean/zhihu-automation-skill#readme",
   "type": "module",
   "scripts": {
+    "setup": "node scripts/setup.js",
+    "zhihu": "node zhihu.js",
+    "version": "node zhihu.js --version",
     "test": "node --test tests/*.js",
     "smoke-test": "node tests/smoke-test.js",
     "cookie-check": "node tests/cookie-check.js",
