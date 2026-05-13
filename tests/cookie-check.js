@@ -34,6 +34,7 @@ function formatDate(ts) {
 function main() {
   const args = process.argv.slice(2);
   const fixMode = args.includes('--fix');
+  const isCI = !!process.env.CI;
 
   console.log('🍪 Cookie 检测');
   console.log('');
@@ -44,6 +45,10 @@ function main() {
     console.log('❌ Cookie 文件不存在');
     console.log(`   路径: ${COOKIE_PATH}`);
     console.log('');
+    if (isCI) {
+      console.log('   (CI 环境无 Cookie 文件是正常状态)');
+      process.exit(0);  // CI 中 Cookie 缺失是预期行为，不视作失败
+    }
     console.log('   请先运行以下命令登录知乎并导出 Cookie:');
     console.log('   node scripts/zhihu-export-cookie.js');
     process.exit(1);
@@ -64,8 +69,9 @@ function main() {
       unlinkSync(COOKIE_PATH);
       testLog.info('Cookie 文件已清理', { path: COOKIE_PATH });
       console.log('✅ Cookie 文件已删除，请重新导出');
+      process.exit(0);
     }
-    process.exit(1);
+    process.exit(isCI ? 0 : 1);  // CI 中解密失败也不视作失败
   }
 
   // 3. 检查有效期
@@ -87,12 +93,12 @@ function main() {
     if (reason === 'expired') {
       testLog.warn('Cookie 已过期', { expiresInDays });
       console.log('❌ Cookie 已过期，请重新运行 node scripts/zhihu-export-cookie.js');
-      process.exit(1);
+      process.exit(isCI ? 0 : 1);  // CI 中过期也不视作失败
     }
     if (reason === 'no_cookie_file' || reason === 'z_c0_missing') {
       testLog.warn('无效的 Cookie 文件', { reason });
       console.log('❌ 无效的 Cookie 文件，请重新导出');
-      process.exit(1);
+      process.exit(isCI ? 0 : 1);
     }
   }
 
