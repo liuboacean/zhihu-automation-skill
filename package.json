@@ -23,7 +23,7 @@
     "interact": "node scripts/zhihu-interact.js"
   },
   "dependencies": {
-    "playwright": "^1.52.0"
+    "playwright": "^1.60.0"
   },
   "engines": {
     "node": ">=18.0.0"
