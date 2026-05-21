@@ -3,6 +3,7 @@
   "version": "2.0.2",
   "description": "Zhihu (知乎) Automation Skill — publish articles, thoughts, answer questions, interact, and extract data with dual-channel architecture (HTTP read + browser write). v2.0.2 adds unified logging framework and complete JSDoc type annotations.",
   "homepage": "https://github.com/liuboacean/zhihu-automation-skill#readme",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "setup": "node scripts/setup.js",
